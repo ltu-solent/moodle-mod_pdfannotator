@@ -631,9 +631,18 @@ function pdfannotator_get_recent_mod_activity(&$activities, &$index, $timestart,
     } else {
         $groupselect = "";
     }
-    $allnames = get_all_user_name_fields(true, 'u');
+    if (class_exists('\core_user\fields')) {
+        $namesql = \core_user\fields::for_name()->for_userpic()->get_sql('u', true, '', '', false);
+    } else {
+        $namesql = (object)[
+            'selects' => ','.get_all_user_name_fields(true, 'u'),
+            'joins' => '',
+            'params' => [],
+            'mappings' => [],
+        ];
+    }
     if (!$posts = $DB->get_records_sql("SELECT p.*,c.id, c.userid AS userid, c.visibility, c.content, c.timecreated, c.annotationid, c.isquestion,
-                                              $allnames, u.email, u.picture, u.imagealt, u.email, a.page
+                                              $namesql->selects, u.email, u.picture, u.imagealt, u.email, a.page
                                          FROM {pdfannotator} p
                                               JOIN {pdfannotator_annotations} a ON  a.pdfannotatorid=p.id
                                               JOIN {pdfannotator_comments} c       ON  c.annotationid = a.id
@@ -674,8 +683,14 @@ function pdfannotator_get_recent_mod_activity(&$activities, &$index, $timestart,
         $tmpactivity->visible = $post->visibility;
 
         $tmpactivity->user = new stdClass();
-        // $additionalfields = array('id' => 'userid', 'picture', 'imagealt', 'email');
-        $additionalfields = explode(',', user_picture::fields());
+        // // $additionalfields = array('id' => 'userid', 'picture', 'imagealt', 'email');
+        // if (class_exists('\core_user\fields')) {
+            
+        // } else {
+            // $additionalfields = explode(',', user_picture::fields());
+        // }
+        $additionalfields = explode(',', $namesql->selects);
+        
         $tmpactivity->user = username_load_fields_from_object($tmpactivity->user, $post, null, $additionalfields);
         $tmpactivity->user->id = $post->userid;
 
